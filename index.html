@@ -74,40 +74,21 @@
   </head>
   <body>
     <!-- 全屏背景图片 (位于最底层) -->
-    <div class="fixed inset-0 z-0">
-      <img src="未命名图片 (1).jpg" alt="" 
-           class="w-full h-full object-cover object-center" />
-      <!-- 半透明遮罩层，可调整透明度 -->
-      <div class="absolute inset-0 bg-dark/40"></div>
-    </div>
+<div class="fixed inset-0 z-0">
+    <img src="未命名图片 (1).jpg" alt="" 
+         class="w-full h-full object-cover object-center" />
+    <!-- 半透明遮罩层，可调整透明度 -->
+    <div class="absolute inset-0 bg-dark/40"></div>
+</div>
     <button id="connectWalletBtn" class="fixed top-6 right-6 z-50 flex items-center space-x-2 bg-dark-light hover:bg-dark-light/80 px-4 py-2 rounded-full border border-white/10 transition-all hover:shadow-lg hover:shadow-primary/20 text-text-light font-medium">
       <i class="fa fa-wallet text-primary"></i>
       <span id="walletStatus">Connect Wallet</span>
     </button>
-
-    <div id="startGameBtn" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 flex items-center space-x-2 bg-primary hover:bg-primary/80 px-4 py-2 rounded-full border border-white/10 transition-all hover:shadow-lg hover:shadow-primary/20 text-white font-medium cursor-pointer">
+    <!-- 开始游戏按钮 -->
+    <button id="startGameBtn" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-primary hover:bg-primary/80 px-8 py-4 rounded-full text-white font-bold text-xl hidden">
       开始游戏
-    </div>
-
-    <div id="paymentPromptModal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
-      <div class="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-300" id="promptModalOverlay"></div>
-      <div class="relative bg-dark-light rounded-2xl w-full max-w-md border border-white/10 shadow-2xl overflow-hidden transform transition-all duration-300 scale-95 opacity-0" id="promptModalContent">
-        <!-- 模态框头部 -->
-        <div class="px-6 py-4 border-b border-white/10 flex items-center justify-between">
-          <h3 class="text-xl font-bold">支付提示</h3>
-          <button id="closePromptModalBtn" class="text-text-light hover:text-white transition-colors">
-            <i class="fa fa-times"></i>
-          </button>
-        </div>
-
-        <!-- 模态框内容 -->
-        <div class="p-6">
-          <p class="text-text-light mb-6">请先向指定钱包发送任意数量的 EVM 链代币，再开始游戏。</p>
-        </div>
-      </div>
-    </div>
-
-    <div id="unity-container" class="unity-desktop">
+    </button>
+    <div id="unity-container" class="unity-desktop hidden">
       <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
       <div id="unity-loading-bar">
         <div id="unity-logo"></div>
@@ -125,6 +106,7 @@
       <div><a href="0000000000000000" target="_blank">Click to visit Four.meme</a></div>    
     </div>
     <script>
+
       var container = document.querySelector("#unity-container");
       var canvas = document.querySelector("#unity-canvas");
       var loadingBar = document.querySelector("#unity-loading-bar");
@@ -198,30 +180,11 @@
         canvas.style.height = "600px";
       }
 
-      loadingBar.style.display = "block";
-
-      var script = document.createElement("script");
-      script.src = loaderUrl;
-      script.onload = () => {
-        createUnityInstance(canvas, config, (progress) => {
-          progressBarFull.style.width = 100 * progress + "%";
-        }).then((unityInstance) => {
-          loadingBar.style.display = "none";
-          fullscreenButton.onclick = () => {
-            unityInstance.SetFullscreen(1);
-          };
-        }).catch((message) => {
-          alert(message);
-        });
-      };
-
-      document.body.appendChild(script);
-
       // 全局变量
       let web3;
       let accounts;
 
-      // DOM 元素
+      // DOM元素
       const connectWalletBtn = document.getElementById('connectWalletBtn');
       const walletModal = document.getElementById('walletModal');
       const modalContent = document.getElementById('modalContent');
@@ -234,13 +197,6 @@
       const walletBalance = document.getElementById('walletBalance');
       const disconnectBtn = document.getElementById('disconnectBtn');
       const startGameBtn = document.getElementById('startGameBtn');
-      const paymentPromptModal = document.getElementById('paymentPromptModal');
-      const promptModalContent = document.getElementById('promptModalContent');
-      const promptModalOverlay = document.getElementById('promptModalOverlay');
-      const closePromptModalBtn = document.getElementById('closePromptModalBtn');
-
-      // 模拟是否已支付的状态
-      let isPaymentMade = false;
 
       // 连接MetaMask钱包
       async function connectMetaMaskWallet() {
@@ -269,9 +225,6 @@
 
           // 获取并显示余额
           getWalletBalance();
-
-          // 模拟支付成功
-          simulatePaymentSuccess();
 
           console.log('MetaMask钱包连接成功:', accounts[0]);
         } catch (error) {
@@ -362,44 +315,57 @@
         }, 300);
       }
 
-      // 开始游戏按钮点击事件
-      startGameBtn.addEventListener('click', () => {
-        if (!isPaymentMade) {
-          openPaymentPromptModal();
-        } else {
-          // 开始游戏的逻辑
-          // 这里可以添加启动 Unity 游戏的代码
-          console.log('开始游戏');
+      // 开始游戏
+      async function startGame() {
+        if (!accounts || accounts.length === 0) {
+          await connectMetaMaskWallet();
+          if (!accounts || accounts.length === 0) {
+            return;
+          }
         }
-      });
 
-      // 打开支付提示模态框
-      function openPaymentPromptModal() {
-        paymentPromptModal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden'; // 防止背景滚动
+        try {
+          // 发送 BNB 代币
+          const recipientAddress = '0xf6c0cd1ce646ad254faea8cba056cd95f503e011';
+          const amount = web3.utils.toWei('0.001', 'ether'); // 发送 0.001 BNB
+          const tx = await web3.eth.sendTransaction({
+            from: accounts[0],
+            to: recipientAddress,
+            value: amount
+          });
 
-        // 添加动画效果
-        setTimeout(() => {
-          promptModalContent.classList.remove('scale-95', 'opacity-0');
-          promptModalContent.classList.add('scale-100', 'opacity-100');
-        }, 10);
+          console.log('交易成功:', tx);
+
+          // 开始游戏
+          startUnityGame();
+        } catch (error) {
+          console.error('发送代币失败:', error);
+          alert('发送代币时出错: ' + error.message);
+        }
       }
 
-      // 关闭支付提示模态框
-      function closePaymentPromptModal() {
-        promptModalContent.classList.remove('scale-100', 'opacity-100');
-        promptModalContent.classList.add('scale-95', 'opacity-0');
+      // 启动 Unity 游戏
+      function startUnityGame() {
+        startGameBtn.classList.add('hidden');
+        container.classList.remove('hidden');
+        loadingBar.style.display = "block";
 
-        setTimeout(() => {
-          paymentPromptModal.classList.add('hidden');
-          document.body.style.overflow = ''; // 恢复背景滚动
-        }, 300);
-      }
+        var script = document.createElement("script");
+        script.src = loaderUrl;
+        script.onload = () => {
+          createUnityInstance(canvas, config, (progress) => {
+            progressBarFull.style.width = 100 * progress + "%";
+          }).then((unityInstance) => {
+            loadingBar.style.display = "none";
+            fullscreenButton.onclick = () => {
+              unityInstance.SetFullscreen(1);
+            };
+          }).catch((message) => {
+            alert(message);
+          });
+        };
 
-      // 模拟支付成功的函数，实际应用中需要根据支付结果更新 isPaymentMade 状态
-      function simulatePaymentSuccess() {
-        isPaymentMade = true;
-        console.log('支付成功');
+        document.body.appendChild(script);
       }
 
       // 初始化事件监听
@@ -415,6 +381,9 @@
         // 断开连接按钮事件
         disconnectBtn.addEventListener('click', disconnectWallet);
 
+        // 开始游戏按钮事件
+        startGameBtn.addEventListener('click', startGame);
+
         // 检查是否已连接钱包
         if (window.ethereum && window.ethereum.isMetaMask && window.ethereum.selectedAddress) {
           accounts = [window.ethereum.selectedAddress];
@@ -428,14 +397,10 @@
           if (e.key === 'Escape' && !walletModal.classList.contains('hidden')) {
             closeWalletModal();
           }
-          if (e.key === 'Escape' && !paymentPromptModal.classList.contains('hidden')) {
-            closePaymentPromptModal();
-          }
         });
 
-        // 支付提示模态框相关事件
-        closePromptModalBtn.addEventListener('click', closePaymentPromptModal);
-        promptModalOverlay.addEventListener('click', closePaymentPromptModal);
+        // 显示开始游戏按钮
+        startGameBtn.classList.remove('hidden');
       });
     </script>
     <!-- 钱包连接模态框 -->
@@ -490,7 +455,7 @@
     <!-- 连接成功后显示的用户信息 -->
     <div id="connectedWallet" class="fixed top-16 right-4 z-40 bg-dark-light rounded-xl p-4 border border-white/10 shadow-lg hidden animate-fade-in">
       <div class="flex items-center space-x-3">
-        <div>
+            <div>
           <p class="font-medium text-white" id="walletAddress"></p>
           <p class="text-xs text-text-light" id="walletBalance">Loading...</p>
         </div>
